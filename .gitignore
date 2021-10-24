@@ -1,4 +1,5 @@
 *.o
+river-shifttags
 xdg-shell.h
 xdg-shell.c
 river-status-unstable-v1.h
