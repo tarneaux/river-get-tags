@@ -7,9 +7,6 @@
 #include "river-status-unstable-v1.h"
 #include "river-control-unstable-v1.h"
 
-#define INT_SIZE sizeof (int)     // Size of int in bytes
-#define INT_BITS INT_SIZE * 8 - 1 // Size of int in bits - 1
-
 int ret = EXIT_SUCCESS;
 
 struct wl_display *wl_display = NULL;
@@ -44,7 +41,7 @@ rotate (
         int num_tags)
 {
 
-  rotations %= (int)INT_BITS;
+  rotations %= num_tags;
 
   const unsigned int mask = ~(~(0U) << num_tags) << start_tag;
   unsigned int to_rotate = (tagmask & mask) >> start_tag;
