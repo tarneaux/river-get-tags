@@ -1,7 +1,6 @@
 # river-shifttags
 
-A tool for the river Wayland compositor that will calculate the
-rotated tags from the currently focused tags.
+A small utility for the river Wayland compositor to rotate the focused tags.
 
 # Installation
 
