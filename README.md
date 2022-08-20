@@ -8,7 +8,7 @@ tags are in focus.
 
 ```sh
 $ make
-# make install
+$ sudo make install
 ```
 
 # Usage
