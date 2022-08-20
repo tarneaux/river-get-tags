@@ -80,6 +80,11 @@ update_tagmask(void* data,
                struct zriver_output_status_v1* output_status_v1,
                unsigned int tagmask)
 {
+    static bool rotated = false;
+    if (rotated) {
+        return;
+    }
+    rotated = true;
     char* new_tagmask = rotate(tagmask, shifts, start_tag, num_tags);
     set_tagmask(river_controller, new_tagmask);
     free(new_tagmask);
