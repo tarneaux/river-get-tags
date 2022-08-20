@@ -1,6 +1,6 @@
-BasedOnStyle: Chromium
+BasedOnStyle: Mozilla
 IndentWidth: 4
-UseTab: ForIndentation
+UseTab: Never
 BreakBeforeBraces: Linux
 AllowShortIfStatementsOnASingleLine: true
 IndentCaseLabels: false
