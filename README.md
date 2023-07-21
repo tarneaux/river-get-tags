@@ -10,6 +10,15 @@ tags are in focus.
 $ make
 $ sudo make install
 ```
+## AUR - Arch Linux
+
+Thanks to _ygabuev_, `river-shifttags-git` is packaged on the AUR. 
+
+```sh
+git clone https://aur.archlinux.org/river-shifttags-git.git
+cd river-shifttags-git
+makepkg -si
+```
 
 # Usage
 
