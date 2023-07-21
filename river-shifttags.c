@@ -1,4 +1,5 @@
 #include <getopt.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,7 +46,10 @@ rotate(unsigned int tagmask, int rotations, int start_tag, int num_tags)
 {
     rotations %= num_tags;
 
-    const unsigned int mask = ~(~(0U) << num_tags) << start_tag;
+    const unsigned int mask =
+      ~(num_tags < (int)sizeof(tagmask) * CHAR_BIT ? (~(0U) << num_tags) : 0U)
+      << start_tag;
+
     unsigned int to_rotate = (tagmask & mask) >> start_tag;
 
     if (rotations < 1) {
@@ -62,6 +66,7 @@ rotate(unsigned int tagmask, int rotations, int start_tag, int num_tags)
     }
 
     char* tags_str = malloc((size_t)snprintf(NULL, 0, "%d", new_tags));
+
     sprintf(tags_str, "%d", new_tags);
     return tags_str;
 }
@@ -86,6 +91,7 @@ update_tagmask(void* data,
     }
     rotated = true;
     char* new_tagmask = rotate(tagmask, shifts, start_tag, num_tags);
+
     set_tagmask(river_controller, new_tagmask);
     free(new_tagmask);
 }
