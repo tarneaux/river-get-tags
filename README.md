@@ -37,11 +37,20 @@ To rotate a different number of tags
 river-shifttags --num-tags 16
 ```
 
+Use the `--occupied` flag to skip unoccupied tags while shifting
+```sh
+river-shifttags --shifts -1 --occupied
+```
+
 ## Example configuration
 
 ```sh
-riverctl map normal $super BRACKETRIGHT spawn  'river-shifttags'
-riverctl map normal $super BRACKETLEFT spawn  'river-shifttags --shift -1'
+super="Mod4"
+
+riverctl map normal $super BRACKETRIGHT spawn  'river-shifttags --occupied'
+riverctl map normal $super BRACKETLEFT spawn  'river-shifttags --shift -1 --occupied'
+riverctl map normal $super+Shift BRACKETRIGHT spawn  'river-shifttags'
+riverctl map normal $super+Shift BRACKETLEFT spawn  'river-shifttags --shift -1'
 ```
 
 # Contributing
