@@ -9,8 +9,6 @@
 #include "river-control-unstable-v1.h"
 #include "river-status-unstable-v1.h"
 
-int ret = EXIT_SUCCESS;
-
 struct wl_display* wl_display = NULL;
 struct wl_output* wl_output = NULL;
 struct wl_seat* seat = NULL;
@@ -21,11 +19,15 @@ struct zriver_control_v1* river_controller = NULL;
 struct zriver_output_status_v1* river_output_status = NULL;
 struct zriver_seat_status_v1* river_seat_status = NULL;
 
+/* Passed Configuration */
 int shifts = 1;
 int num_tags = 9;
 int start_tag = 0;
+bool occupied_only = false;
 
-unsigned int new_tags = 0;
+/* Globals */
+uint32_t occupied_tags = 0;
+uint32_t init_tags;
 
 static void
 noop()
@@ -35,70 +37,143 @@ noop()
 const char usage[] =
   "Usage: river-shiftview [OPTIONS]\n"
   "   --shifts VALUE     value by which to rotate selected tag.\n"
+  "                      (default: 1)\n"
   "   --num-tags VALUE   number of tags to rotate\n"
-  "   --start VALUE      First tag to rotate from.\n"
+  "                      (default: 9)\n"
+  "   --start VALUE      First tag to rotate from. (starts with 0)\n"
+  "                      (default: 0)\n"
+  "   --occupied         Skip unoccupied tags.\n"
   "   --help             print this message and exit.\n"
   "\n"
   "\n";
 
-char*
-rotate(unsigned int tagmask, int rotations, int start_tag, int num_tags)
+uint32_t
+get_update_mask(int start_tag, int num_tags)
 {
-    rotations %= num_tags;
+    return ~(num_tags < (int)sizeof(init_tags) * CHAR_BIT ? (~(0U) << num_tags)
+                                                          : 0U)
+           << start_tag;
+}
+/*
+ * Main rotation algo (Lots of bitwise logic)
+ */
+uint32_t
+rotate(uint32_t init_tags, int shifts, int start_tag, int num_tags)
+{
+    shifts %= num_tags;
 
-    const unsigned int mask =
-      ~(num_tags < (int)sizeof(tagmask) * CHAR_BIT ? (~(0U) << num_tags) : 0U)
-      << start_tag;
+    /* using ternary operator because shifting more than CHAR_BIT size is UB */
+    const unsigned int update_mask = get_update_mask(start_tag, num_tags);
 
-    unsigned int to_rotate = (tagmask & mask) >> start_tag;
+    uint32_t rotated = init_tags & update_mask;
 
-    if (rotations < 1) {
-        rotations = -rotations;
-        new_tags =
-          (mask & ((to_rotate >> rotations) |
-                   (to_rotate << (num_tags - rotations)) << start_tag)) +
-          (~mask & tagmask);
+    if (shifts < 1) {
+        shifts = -shifts;
+        rotated = (rotated >> shifts) | (rotated << (num_tags - shifts));
     } else {
-        new_tags =
-          (mask & ((to_rotate << rotations) |
-                   (to_rotate >> (num_tags - rotations)) << start_tag)) +
-          (~mask & tagmask);
+        rotated = (rotated << shifts) | (rotated >> (num_tags - shifts));
     }
 
-    char* tags_str = malloc((size_t)snprintf(NULL, 0, "%d", new_tags));
+    return (update_mask & rotated) | (~update_mask & init_tags);
+}
 
-    sprintf(tags_str, "%d", new_tags);
-    return tags_str;
+uint32_t
+snap_to_occupied(uint32_t new_tagmask,
+                 uint32_t occupied_tags,
+                 int start_tag,
+                 int num_tags,
+                 int shifts)
+{
+    const uint32_t update_mask = get_update_mask(start_tag, num_tags);
+    uint32_t final_tagmask = 0;
+
+    for (uint32_t i = 1U << start_tag;
+         i <= 1U << (start_tag + num_tags - 1) && i != 0;
+         i <<= 1) {
+
+        if (!(i & new_tagmask)) {
+            /* Not focused in new tagmask */
+            continue;
+        }
+
+        if (i & occupied_tags) {
+            /* tag is already occupied */
+            final_tagmask |= i;
+            continue;
+        }
+
+        /*
+         * Search for the closest occupied tag towards direction of shift
+         */
+        if (shifts > 0) {
+            for (uint32_t j = i; j <= 1U << (start_tag + num_tags); j <<= 1) {
+                if (j & occupied_tags) {
+                    final_tagmask |= j;
+                    goto ENDLOOP;
+                }
+            }
+            for (uint32_t j = 1 << start_tag; j <= i; j <<= 1) {
+                if (j & occupied_tags) {
+                    final_tagmask |= j;
+                    goto ENDLOOP;
+                }
+            }
+        } else {
+            for (uint32_t j = i; j <= i; j >>= 1) {
+                if (j & occupied_tags) {
+                    final_tagmask |= j;
+                    goto ENDLOOP;
+                }
+            }
+            for (uint32_t j = 1 << start_tag; j <= 1U << (start_tag + num_tags);
+                 j >>= 1) {
+                if (j & occupied_tags) {
+                    final_tagmask |= j;
+                    goto ENDLOOP;
+                }
+            }
+        }
+    ENDLOOP:;
+    }
+
+    return (update_mask & final_tagmask) | (~update_mask & new_tagmask);
 }
 
 static void
-set_tagmask(struct zriver_control_v1* river_controller, char* tagmask)
+set_tagmask(struct zriver_control_v1* river_controller, uint32_t new_tagmask)
 {
+    char* tags_str = malloc((size_t)snprintf(NULL, 0, "%u", new_tagmask));
+    sprintf(tags_str, "%d", new_tagmask);
+
     zriver_control_v1_add_argument(river_controller, "set-focused-tags");
-    zriver_control_v1_add_argument(river_controller, tagmask);
+    zriver_control_v1_add_argument(river_controller, tags_str);
     zriver_control_v1_run_command(river_controller, seat);
-    wl_display_roundtrip(wl_display);
+    wl_display_flush(wl_display);
 }
 
 static void
-update_tagmask(void* data,
-               struct zriver_output_status_v1* output_status_v1,
-               unsigned int tagmask)
+set_occupied_tags(void* data,
+                  struct zriver_output_status_v1* river_status,
+                  struct wl_array* tags)
 {
-    static bool rotated = false;
-    if (rotated) {
-        return;
+    uint32_t* i;
+    wl_array_for_each(i, tags)
+    {
+        occupied_tags |= *i;
     }
-    rotated = true;
-    char* new_tagmask = rotate(tagmask, shifts, start_tag, num_tags);
+}
 
-    set_tagmask(river_controller, new_tagmask);
-    free(new_tagmask);
+static void
+set_init_tagmask(void* data,
+                 struct zriver_output_status_v1* output_status_v1,
+                 unsigned int tagmask)
+{
+    init_tags = tagmask;
 }
 
 static const struct zriver_output_status_v1_listener output_status_listener = {
-    .focused_tags = update_tagmask,
-    .view_tags = noop,
+    .focused_tags = set_init_tagmask,
+    .view_tags = set_occupied_tags,
     .urgent_tags = noop,
 };
 
@@ -130,7 +205,7 @@ global_registry_handler(void* data,
                         const char* interface,
                         uint32_t version)
 {
-    /* printf("Got a registry event for %s id %d\n", interface, id); */
+    /*printf("Got a registry event for %s id %d\n", interface, id);*/
     if (strcmp(interface, "wl_output") == 0) {
         wl_registry_bind(registry, id, &wl_output_interface, 1);
     } else if (strcmp(interface, "wl_seat") == 0) {
@@ -161,9 +236,10 @@ main(int argc, char* argv[])
     /*
      * Parse options and parameters
      */
-    enum { HELP, SHIFT_VALUE, START_TAG, NUM_TAGS };
+    enum { HELP, SHIFT_VALUE, START_TAG, NUM_TAGS, OCCUPIED };
     static struct option opts[] = {
         { "help", no_argument, NULL, HELP },
+        { "occupied", no_argument, NULL, OCCUPIED },
         { "shifts", required_argument, NULL, SHIFT_VALUE },
         { "num-tags", required_argument, NULL, NUM_TAGS },
         { "start", required_argument, NULL, START_TAG },
@@ -184,6 +260,9 @@ main(int argc, char* argv[])
             break;
         case NUM_TAGS:
             num_tags = atoi(optarg);
+            break;
+        case OCCUPIED:
+            occupied_only = true;
             break;
         default:
             return EXIT_FAILURE;
@@ -206,7 +285,16 @@ main(int argc, char* argv[])
     }
 
     /*
-     * Main main
+     *  1. Use wl_registry handler to retrieve
+     *     a. wl_output
+     *     b. wl_seat
+     *     c. river_status_manager
+     *     d. river_controller
+     *  2. Use get_river_seat_status to get info about tags
+     *     a. focused tags
+     *     b. occupied tags
+     *     The above are updated to global variables
+     *  3. Perform logic to update the tags and set_tagmask()
      */
     struct wl_registry* registry = wl_display_get_registry(wl_display);
     wl_registry_add_listener(registry, &registry_listener, NULL);
@@ -214,12 +302,24 @@ main(int argc, char* argv[])
     wl_display_roundtrip(wl_display);
     river_seat_status = zriver_status_manager_v1_get_river_seat_status(
       river_status_manager, seat);
-
     zriver_seat_status_v1_add_listener(
       river_seat_status, &river_seat_status_listener, seat);
 
     wl_display_roundtrip(wl_display);
+
+    /*
+     * Rotation logic goes here
+     */
+    uint32_t new_tagmask = rotate(init_tags, shifts, start_tag, num_tags);
+    if (occupied_only &&
+        occupied_tags /* if no tags are occupied, do nothing */) {
+        new_tagmask = snap_to_occupied(
+          new_tagmask, occupied_tags, start_tag, num_tags, shifts);
+    }
+    set_tagmask(river_controller, new_tagmask);
+
+    /* Cleanup */
     zriver_control_v1_destroy(river_controller);
 
-    return ret;
+    return EXIT_SUCCESS;
 }
