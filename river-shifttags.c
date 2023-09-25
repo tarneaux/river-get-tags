@@ -9,6 +9,8 @@
 #include "river-control-unstable-v1.h"
 #include "river-status-unstable-v1.h"
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 struct wl_display* wl_display = NULL;
 struct wl_output* wl_output = NULL;
 struct wl_seat* seat = NULL;
@@ -102,14 +104,20 @@ snap_to_occupied(uint32_t new_tagmask,
             continue;
         }
 
+        const int max_left =
+          MIN(start_tag + num_tags, (int)sizeof(uint32_t) * CHAR_BIT - 1);
+
         /*
          * Search for the closest occupied tag towards direction of shift
          */
         if (shifts > 0) {
-            for (uint32_t j = i; j <= 1U << (start_tag + num_tags); j <<= 1) {
+            for (uint32_t j = i;; j <<= 1) {
                 if (j & occupied_tags) {
                     final_tagmask |= j;
                     goto ENDLOOP;
+                }
+                if (j == 1U << max_left) {
+                    break;
                 }
             }
             for (uint32_t j = 1 << start_tag; j <= i; j <<= 1) {
@@ -119,20 +127,21 @@ snap_to_occupied(uint32_t new_tagmask,
                 }
             }
         } else {
-            for (uint32_t j = i; j <= i; j >>= 1) {
+            for (uint32_t j = i; j >= 1U << start_tag; j >>= 1) {
                 if (j & occupied_tags) {
                     final_tagmask |= j;
                     goto ENDLOOP;
                 }
             }
-            for (uint32_t j = 1 << start_tag; j <= 1U << (start_tag + num_tags);
-                 j >>= 1) {
+            for (uint32_t j = 1U << max_left; j < i; j >>= 1) {
                 if (j & occupied_tags) {
                     final_tagmask |= j;
                     goto ENDLOOP;
                 }
             }
         }
+
+        final_tagmask |= i; /* no occupied tags found */
     ENDLOOP:;
     }
 
