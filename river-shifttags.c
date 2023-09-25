@@ -143,7 +143,7 @@ static void
 set_tagmask(struct zriver_control_v1* river_controller, uint32_t new_tagmask)
 {
     char* tags_str = malloc((size_t)snprintf(NULL, 0, "%u", new_tagmask));
-    sprintf(tags_str, "%d", new_tagmask);
+    sprintf(tags_str, "%u", new_tagmask);
 
     zriver_control_v1_add_argument(river_controller, "set-focused-tags");
     zriver_control_v1_add_argument(river_controller, tags_str);
