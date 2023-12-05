@@ -1,66 +1,25 @@
-# river-shifttags
+# river-list-tags
 
-A small utility for the river Wayland compositor to rotate the focused tags.
-Useful for focusing next/prev tag, or rotating the whole tagmask if multiple
-tags are in focus.
+A small utility to get the currently focused and occupied tags in the River compositor on Wayland.
+
+This will most likely be used for scripting. I used for the my eww (Elkowar's Wacky Widgets) bar.
 
 # Installation
 
 ```sh
-$ make
-$ sudo make install
-```
-## AUR - Arch Linux
-
-Thanks to _ygabuev_, `river-shifttags-git` is packaged on the AUR. 
-
-```sh
-git clone https://aur.archlinux.org/river-shifttags-git.git
-cd river-shifttags-git
-makepkg -si
+make
+sudo make install
 ```
 
 # Usage
 
-To rotate the currently focused once to the right
+Just run the tool:
 ```sh
-river-shifttags
+river-list-tags
 ```
 
-To rotate the currently focused once to the left
-```sh
-river-shifttags --shifts -1
-```
+# Credits & License
 
-To rotate a different number of tags
-```sh
-river-shifttags --num-tags 16
-```
+This tool is heavily based on [Adithya Kumar](https://gitlab.com/akumar-xyz)'s [river-shifttags](https://gitlab.com/akumar-xyz/river-shifttags). I basically just removed some of the functionality and adjusted the prints.
 
-Use the `--occupied` flag to skip unoccupied tags while shifting
-```sh
-river-shifttags --shifts -1 --occupied
-```
-
-## Example configuration
-
-```sh
-super="Mod4"
-
-riverctl map normal $super BRACKETRIGHT spawn  'river-shifttags --occupied'
-riverctl map normal $super BRACKETLEFT spawn  'river-shifttags --shift -1 --occupied'
-riverctl map normal $super+Shift BRACKETRIGHT spawn  'river-shifttags'
-riverctl map normal $super+Shift BRACKETLEFT spawn  'river-shifttags --shift -1'
-```
-
-# Contributing
-
-Please feel free to submit a merge request if you find something to improve in
-the code. Come across an issue? please report it. 
-
-tl;dr contributions welcome.
-
-
-# License
-
-GPLv3
+License: GPL version 3

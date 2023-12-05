@@ -6,10 +6,10 @@ MANDIR=$(PREFIX)/share/man
 
 CFLAGS=-Wall -Werror -Wextra -Wpedantic -Wno-unused-parameter -Wconversion -Wformat-security -Wformat -Wsign-conversion -Wfloat-conversion -Wunused-result $(shell pkg-config --cflags pixman-1)
 LIBS=-lwayland-client $(shell pkg-config --libs pixman-1) -lrt
-OBJ=river-shifttags.o river-status-unstable-v1.o river-control-unstable-v1.o
+OBJ=river-get-tags.o river-status-unstable-v1.o river-control-unstable-v1.o
 GEN=river-status-unstable-v1.c river-status-unstable-v1.h river-control-unstable-v1.c river-control-unstable-v1.h
 
-river-shifttags: $(OBJ)
+river-get-tags: $(OBJ)
 	$(CC) $(LDFLAGS) -o $@ $(OBJ) $(LIBS)
 
 $(OBJ): $(GEN)
@@ -20,19 +20,17 @@ $(OBJ): $(GEN)
 %.h: %.xml
 	$(SCANNER) client-header < $< > $@
 
-install: river-shifttags
-	install -D river-shifttags   $(DESTDIR)$(BINDIR)/river-shifttags
-	install -D river-shifttags.1 $(DESTDIR)$(MANDIR)/man1/river-shifttags.1
+install: river-get-tags
+	install -D river-get-tags   $(DESTDIR)$(BINDIR)/river-get-tags
 
 uninstall:
-	$(RM) $(DESTDIR)$(BINDIR)/river-shifttags
-	$(RM) $(DESTDIR)$(MANDIR)/man1/river-shifttags.1
+	$(RM) $(DESTDIR)$(BINDIR)/river-get-tags
 
-run: river-shifttags
-	./river-shifttags
+run: river-get-tags
+	./river-get-tags
 
 clean:
-	$(RM) river-shifttags $(GEN) $(OBJ)
+	$(RM) river-get-tags $(GEN) $(OBJ)
 
 .PHONY: clean install
 
