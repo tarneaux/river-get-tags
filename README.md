@@ -4,6 +4,14 @@ A small utility to get the currently focused and occupied tags in the River comp
 
 This will most likely be used for scripting. I used for the my eww (Elkowar's Wacky Widgets) bar.
 
+To configure the number of printed bits, change the `5` value (6 tags minus one for me) in `river-list-tags.c`
+```c
+void printbits(unsigned int v) {
+  int i; // for C89 compatability
+  for(i = 0; i <= 5; i++) putchar('0' + ((v >> i) & 1));
+}
+```
+
 # Installation
 
 ```sh
