@@ -14,6 +14,12 @@ void printbits(unsigned int v) {
 
 # Installation
 
+Install dependencies:
+
+- cairo
+- wayland-devel
+- pkg-config
+
 ```sh
 make
 sudo make install
