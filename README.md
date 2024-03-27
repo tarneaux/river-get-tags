@@ -1,10 +1,10 @@
-# river-list-tags
+# river-get-tags
 
 A small utility to get the currently focused and occupied tags in the River compositor on Wayland.
 
 This will most likely be used for scripting. I used for the my eww (Elkowar's Wacky Widgets) bar.
 
-To configure the number of printed bits, change the `5` value (6 tags minus one for me) in `river-list-tags.c`
+To configure the number of printed bits, change the `5` value (6 tags minus one for me) in `river-get-tags.c`
 ```c
 void printbits(unsigned int v) {
   int i; // for C89 compatability
@@ -13,6 +13,12 @@ void printbits(unsigned int v) {
 ```
 
 # Installation
+
+Install dependencies:
+
+- cairo
+- wayland-devel
+- pkg-config
 
 ```sh
 make
@@ -23,7 +29,7 @@ sudo make install
 
 Just run the tool:
 ```sh
-river-list-tags
+river-get-tags
 ```
 
 # Credits & License
