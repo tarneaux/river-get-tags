@@ -171,11 +171,13 @@ main(int argc, char* argv[])
 
     // Output the focused tags
     printf("focused: ");
+    printf("%d ",focused_tags);
     printbits(focused_tags);
     printf("\n");
 
     // Output the occupied tags
     printf("occupied: ");
+    printf("%d ",occupied_tags);
     printbits(occupied_tags);
     printf("\n");
 
