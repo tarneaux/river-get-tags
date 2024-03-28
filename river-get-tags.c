@@ -123,9 +123,25 @@ static const struct wl_registry_listener registry_listener = {
     global_registry_remover
 };
 
-void printbits(unsigned int v) {
-  int i; // for C89 compatability
-  for(i = 0; i <= 5; i++) putchar('0' + ((v >> i) & 1));
+void
+printbits(unsigned int v, unsigned int n)
+{
+    int i; // for C89 compatability
+    for (i = 0; i < n; i++)
+        putchar('0' + ((v >> i) & 1));
+}
+
+void
+print_usage()
+{
+    printf("river-get-tags [TAG FORMAT] [-b BITFIELD_LENGTH] with:\n\
+  TAG:\n\
+  -f for focused tags\n\
+  -o for occupied tags\n\
+  FORMAT:\n\
+  b for bitfield\n\
+  d for decimal\n\
+  x for hexadecimal\n");
 }
 
 int
@@ -169,17 +185,82 @@ main(int argc, char* argv[])
 
     wl_display_roundtrip(wl_display);
 
-    // Output the focused tags
-    printf("focused: ");
-    printf("%d ",focused_tags);
-    printbits(focused_tags);
-    printf("\n");
+    if (argc < 2) { // default output
+        // Output the focused tags
+        int length = 5;
+        printf("focused: ");
+        printbits(focused_tags, length);
+        printf("\n");
 
-    // Output the occupied tags
-    printf("occupied: ");
-    printf("%d ",occupied_tags);
-    printbits(occupied_tags);
-    printf("\n");
+        // Output the occupied tags
+        printf("occupied: ");
+        printbits(occupied_tags, length);
+        printf("\n");
+    } else { // parsing options
+        int option;
+        int fflag = 0; // request focused tags printing
+        int oflag = 0; // request occupied tags printing
+        int bflag = 0; // specify length of printed bitfield
+        char fformat;  // format for focused tags:  [d]ecimal | [b]itfield
+        char oformat;  // format for occupied tags: [d]ecimal | [b]itfield
+        unsigned int blength = 5; // length of bitfields - 5 as default value
+        const unsigned int MAX_BITFIELD_LENGTH = 32;
+        while ((option = getopt(argc, argv, "f:o:b:")) != -1) {
+            switch (option) {
+            case 'f':
+                fflag++;
+                fformat = *optarg;
+                break;
+            case 'o':
+                oflag++;
+                oformat = *optarg;
+                break;
+            case 'b':
+                bflag++;
+                unsigned int iarg = atoi(optarg);
+                blength =
+                  (iarg < MAX_BITFIELD_LENGTH) ? iarg : MAX_BITFIELD_LENGTH;
+                break;
+            default:
+                print_usage();
+            }
+        }
+        // print as per options
+        if (fflag) {
+            switch (fformat) {
+            case 'b':
+                printbits(focused_tags, blength);
+                printf("\n");
+                break;
+            case 'd':
+                printf("%d\n", focused_tags);
+                break;
+            case 'x':
+                printf("%x\n", focused_tags);
+                break;
+            default:
+                printf("Unrecognized format: %c\n", fformat);
+                print_usage();
+            }
+        }
+        if (oflag) {
+            switch (oformat) {
+            case 'b':
+                printbits(occupied_tags, blength);
+                printf("\n");
+                break;
+            case 'd':
+                printf("%d\n", occupied_tags);
+                break;
+            case 'x':
+                printf("%x\n", occupied_tags);
+                break;
+            default:
+                printf("Unrecognized format: %c\n", oformat);
+                print_usage();
+            }
+        }
+    }
 
     /* Cleanup */
     zriver_control_v1_destroy(river_controller);
