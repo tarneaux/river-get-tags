@@ -134,14 +134,98 @@ printbits(unsigned int v, unsigned int n)
 void
 print_usage()
 {
-    printf("river-get-tags [TAG FORMAT] [-b BITFIELD_LENGTH] with:\n\
-  TAG:\n\
-  -f for focused tags\n\
-  -o for occupied tags\n\
-  FORMAT:\n\
-  b for bitfield\n\
-  d for decimal\n\
-  x for hexadecimal\n");
+    printf(
+      "\nriver-get-tags: retrieve currently focused and occupied tags in the River compositor on Wayland.\n\n\
+Usage:\triver-get-tags (Produce exact same output as river-get-tags -fonF%%5b)\n\
+\triver-get-tags [options]\n\n\
+Options:\n\
+  -h\t\tShow this help message and exit\n\
+  -f\t\tPrint focused tags value\n\
+  -o\t\tPrint occupied tags value\n\
+  -n\t\tPrint tags names in front of value\n\
+  -F <format>\tSpecify print format\n\
+\t\t- %%[1-32]b for bitfield, or\n\
+\t\t- C printf format with specifiers compatible with unsigned integers (d, i, u, o, x, X)\n\n");
+}
+
+void
+print_invalid_format(char* cmd, char* s_format)
+{
+    printf("%s: invalid format for option -F -- `%s`\n", cmd, s_format);
+}
+
+enum format_type { BITFIELD, STANDARD };
+
+struct print_options {
+    bool focused;
+    bool occupied;
+    bool names;
+    enum format_type ftype;
+    int bflength;
+    char* format;
+};
+
+void
+parse_args(int argc, char* argv[], struct print_options* po)
+{
+    int option;
+    while ((option = getopt(argc, argv, "fonF:h")) != -1) {
+        switch (option) {
+        case 'f':
+            po->focused = true;
+            break;
+        case 'o':
+            po->occupied = true;
+            break;
+        case 'n':
+            po->names = true;
+            break;
+        case 'F': // parse format
+            char first = optarg[0];
+            char last = optarg[strlen(optarg) - 1];
+            char* spec = strchr("bdiuoxX", last);
+            if (first != '%' || spec == NULL) {
+                print_invalid_format(argv[0], optarg);
+                print_usage();
+                exit(2);
+            }
+            if (last == 'b') {
+                po->ftype = BITFIELD;
+                char s_bflen[strlen(optarg) - 2 + 1];
+                strncpy(s_bflen, optarg + 1, strlen(optarg) - 2);
+                po->bflength = atoi(s_bflen);
+                if (po->bflength < 1 || po->bflength > 32) {
+                    print_invalid_format(argv[0], optarg);
+                    print_usage();
+                    exit(2);
+                }
+            } else {
+                po->ftype = STANDARD;
+                po->format = optarg;
+            }
+            break;
+        case 'h':
+            print_usage();
+            exit(0);
+            break;
+        case '?':
+        default:
+            print_usage();
+            exit(2);
+        }
+    }
+}
+
+void
+print_tags(uint32_t tags, char* name, struct print_options* po)
+{
+    if (po->names) printf("%s: ", name);
+    if (po->ftype == BITFIELD) {
+        printbits(tags, po->bflength);
+    } else { // STANDARD
+        printf(po->format, tags);
+    }
+    printf("\n");
 }
 
 int
@@ -185,82 +269,18 @@ main(int argc, char* argv[])
 
     wl_display_roundtrip(wl_display);
 
-    if (argc < 2) { // default output
-        // Output the focused tags
-        int length = 5;
-        printf("focused: ");
-        printbits(focused_tags, length);
-        printf("\n");
+    struct print_options po = {
+        true, true, true, BITFIELD, 5, ""
+    }; // default output
 
-        // Output the occupied tags
-        printf("occupied: ");
-        printbits(occupied_tags, length);
-        printf("\n");
-    } else { // parsing options
-        int option;
-        int fflag = 0; // request focused tags printing
-        int oflag = 0; // request occupied tags printing
-        int bflag = 0; // specify length of printed bitfield
-        char fformat;  // format for focused tags:  [d]ecimal | [b]itfield
-        char oformat;  // format for occupied tags: [d]ecimal | [b]itfield
-        unsigned int blength = 5; // length of bitfields - 5 as default value
-        const unsigned int MAX_BITFIELD_LENGTH = 32;
-        while ((option = getopt(argc, argv, "f:o:b:")) != -1) {
-            switch (option) {
-            case 'f':
-                fflag++;
-                fformat = *optarg;
-                break;
-            case 'o':
-                oflag++;
-                oformat = *optarg;
-                break;
-            case 'b':
-                bflag++;
-                unsigned int iarg = atoi(optarg);
-                blength =
-                  (iarg < MAX_BITFIELD_LENGTH) ? iarg : MAX_BITFIELD_LENGTH;
-                break;
-            default:
-                print_usage();
-            }
-        }
-        // print as per options
-        if (fflag) {
-            switch (fformat) {
-            case 'b':
-                printbits(focused_tags, blength);
-                printf("\n");
-                break;
-            case 'd':
-                printf("%d\n", focused_tags);
-                break;
-            case 'x':
-                printf("%x\n", focused_tags);
-                break;
-            default:
-                printf("Unrecognized format: %c\n", fformat);
-                print_usage();
-            }
-        }
-        if (oflag) {
-            switch (oformat) {
-            case 'b':
-                printbits(occupied_tags, blength);
-                printf("\n");
-                break;
-            case 'd':
-                printf("%d\n", occupied_tags);
-                break;
-            case 'x':
-                printf("%x\n", occupied_tags);
-                break;
-            default:
-                printf("Unrecognized format: %c\n", oformat);
-                print_usage();
-            }
-        }
+    if (argc > 1) { // parse arguments
+        po.focused = false;
+        po.occupied = false;
+        po.names = false;
+        parse_args(argc, argv, &po);
     }
+    if (po.focused) print_tags(focused_tags, "focused", &po);
+    if (po.occupied) print_tags(occupied_tags, "occupied", &po);
 
     /* Cleanup */
     zriver_control_v1_destroy(river_controller);
