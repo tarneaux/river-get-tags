@@ -136,7 +136,7 @@ print_usage()
 {
     printf(
       "\nriver-get-tags: retrieve currently focused and occupied tags in the River compositor on Wayland.\n\n\
-Usage:\triver-get-tags (Produce exact same output as river-get-tags -fonF%%5b)\n\
+Usage:\triver-get-tags (Produce exact same output as river-get-tags -fonF%%6b)\n\
 \triver-get-tags [options]\n\n\
 Options:\n\
   -h\t\tShow this help message and exit\n\
@@ -145,7 +145,22 @@ Options:\n\
   -n\t\tPrint tags names in front of value\n\
   -F <format>\tSpecify print format\n\
 \t\t- %%[1-32]b for bitfield, or\n\
-\t\t- C printf format with specifiers compatible with unsigned integers (d, i, u, o, x, X)\n\n");
+\t\t- C printf format with with (u, o, x, X) specifiers for printing tags value as unsigned integer,\n\
+\t\t   octal, lowercase hexadecimal or UPPERCASE HEXADECIMAL\n\n\
+Examples:\n\
+  river-get-tags -f -F %%9b\tWill print the focused tags bitfield from bit 0 (tag 1) to\n\
+                           \tbit 8 (tag 9), e.g. '110110000'\n\
+  river-get-tags -f -F %%u\tWill print the focused tags bitfield value as an unsigned integer, e.g. '27'\n\
+  river-get-tags -f -F %%05u\tWill print the focused tags bitfield value as an unsigned integer of at\n\
+                            \tleast 5 digits, padding with zeros, e.g. '00027'\n\
+  river-get-tags -on -F %%o\tWill print the occupied tags bitfield name & value as an unsigned octal,\n\
+                           \te.g. 'occupied: 223'\n\
+  river-get-tags -fon -F %%#08x\tWill print the focused tags bitfield name & value then, on new line,\n\
+                               \tthe occupied tags bitfield name & value as an unsigned hexadecimal of\n\
+                               \tat least 8 digits, in lower case, padding with zeros and with '0x' prefix,\n\
+                               \te.g. 'focused: 0x00001b\n\
+                               \t      occupied: 0x000093'\n\
+\n");
 }
 
 void
@@ -183,7 +198,7 @@ parse_args(int argc, char* argv[], struct print_options* po)
         case 'F': // parse format
             char first = optarg[0];
             char last = optarg[strlen(optarg) - 1];
-            char* spec = strchr("bdiuoxX", last);
+            char* spec = strchr("buoxX", last);
             if (first != '%' || spec == NULL) {
                 print_invalid_format(argv[0], optarg);
                 print_usage();
@@ -270,7 +285,7 @@ main(int argc, char* argv[])
     wl_display_roundtrip(wl_display);
 
     struct print_options po = {
-        true, true, true, BITFIELD, 5, ""
+        true, true, true, BITFIELD, 6, ""
     }; // default output
 
     if (argc > 1) { // parse arguments
