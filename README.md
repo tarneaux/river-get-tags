@@ -12,12 +12,6 @@ Install dependencies:
 - wayland-devel
 - pkg-config
 
-Install dependencies:
-
-- cairo
-- wayland-devel
-- pkg-config
-
 ```sh
 make
 sudo make install
