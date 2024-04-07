@@ -7,3 +7,4 @@ river-status-unstable-v1.c
 river-control-unstable-v1.h
 river-control-unstable-v1.c
 river-tag-overlay
+*.log
